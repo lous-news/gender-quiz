@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>where do you fall? — a quiz on queer & trans politics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --assim: #D4537E;
+    --anti: #1D9E75;
+    --bio: #BA7517;
+    --post: #534AB7;
+    --bg: #ffffff;
+    --bg2: #f5f4f0;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.25);
+    --text: #1a1a18;
+    --muted: #6b6b68;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; display: flex; justify-content: center; padding: 2rem 1rem; }
+  .qz { width: 100%; max-width: 620px; }
+  .qz-title { font-family: 'DM Serif Display', serif; font-size: 30px; color: var(--text); margin-bottom: 4px; }
+  .qz-sub { font-size: 12px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 2rem; }
+  .progress-bar { height: 2px; background: var(--border); margin-bottom: 2rem; border-radius: 1px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--post); transition: width 0.3s; }
+  .q-card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .q-num { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+  .q-text { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text); margin-bottom: 1.25rem; line-height: 1.4; }
+
+  .slider-ends { display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .slider-end { font-size: 11px; color: var(--muted); max-width: 45%; line-height: 1.3; }
+  .slider-end.right { text-align: right; }
+  input[type=range] { width: 100%; margin: 4px 0; accent-color: var(--post); }
+  .slider-val { text-align: center; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .nav-row { display: flex; gap: 10px; margin-top: 1rem; }
+  .btn { font-family: 'DM Mono', monospace; font-size: 13px; padding: 10px 22px; border: 0.5px solid var(--border2); border-radius: 8px; background: transparent; color: var(--text); cursor: pointer; }
+  .btn:hover { background: var(--bg2); }
+  .btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn.primary:hover { opacity: 0.85; }
+  #result-screen { display: none; }
+  .result-title { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--text); margin-bottom: 4px; }
+  .result-sub { font-size: 12px; color: var(--muted); letter-spacing: 0.06em; margin-bottom: 1.5rem; }
+  .scores-row { display: flex; gap: 12px; margin-bottom: 1.5rem; }
+  .score-card { flex: 1; background: var(--bg2); border: 0.5px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+  .score-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+  .score-val { font-size: 16px; font-weight: 500; }
+  .plot-container { margin: 0 auto 1.5rem; width: 100%; max-width: 500px; }
+  svg.plot { width: 100%; height: auto; display: block; }
+  .retake-btn { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; margin-top: 1rem; display: block; }
+</style>
+</head>
+<body>
+<div class="qz">
+  <div class="qz-title">where do you fall?</div>
+  <div class="qz-sub">a quiz on queer & trans politics</div>
+
+  <div id="quiz-screen">
+    <div class="progress-bar"><div class="progress-fill" id="prog"></div></div>
+    <div id="q-area"></div>
+    <div class="nav-row">
+      <button class="btn" id="prev-btn" onclick="navigate(-1)" style="display:none">← back</button>
+      <button class="btn primary" id="next-btn" onclick="navigate(1)">next →</button>
+    </div>
+  </div>
+
+  <div id="result-screen">
+    <div class="result-title">your result</div>
+    <div class="result-sub">plotted alongside some ideal types</div>
+    <div class="scores-row">
+      <div class="score-card">
+        <div class="score-label">assimilationist ↔ anti-assimilationist</div>
+        <div class="score-val" id="x-score-display" style="color: #D4537E"></div>
+      </div>
+      <div class="score-card">
+        <div class="score-label">bio-essentialist ↔ poststructuralist</div>
+        <div class="score-val" id="y-score-display" style="color: #534AB7"></div>
+      </div>
+    </div>
+    <div class="plot-container">
+      <svg class="plot" viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg" id="plot-svg"></svg>
+    </div>
+    <button class="retake-btn" onclick="retake()">↩ retake the quiz</button>
+  </div>
+</div>
+
+<script>
+const QUESTIONS = [
+  { text: "Government identification should...", left: "offer nonbinary gender options", right: "not track sex/gender classification at all", axis: "x" },
+  { text: "Womanhood is...", left: "defined by reproductive organs", right: "a dynamic category through which bodies are made meaningful", axis: "y" },
+  { text: "Prisons should...", left: "allow trans people to be housed wherever they choose", right: "not exist", axis: "x" },
+  { text: "The military should...", left: "allow queer and trans people to serve openly", right: "be dismantled", axis: "x" },
+  { text: "Hate crime laws...", left: "can protect queer and trans people from violence", right: "dangerously strengthen the state's capacity for control", axis: "x" },
+  { text: "The primary source of violence against queer and trans people is...", left: "prejudiced individuals", right: "the state", axis: "x" },
+  { text: "Transness is...", left: "an innate, congenital condition", right: "made thinkable and possible in relation to others", axis: "y" },
+  { text: "Diverse queer and trans representation in popular media...", left: "can be truly liberatory", right: "is fundamentally limited by the constraints of capitalism", axis: "x" },
+  { text: "At the airport, the TSA should...", left: "let trans people select how they are screened", right: "have better working conditions and renounce their policing duties", axis: "x" },
+  { text: "HIV/AIDS has disproportionately affected queer and trans people because...", left: "they are naturally more sexually active", right: "the state used neglect, propaganda, and discrimination to render them disposable", axis: "xy" },
+  { text: "When seeking gender-affirming care, trans people should...", left: "have better access to trans-affirming therapists", right: "not be required to undergo diagnosis in order to access hormones or surgery", axis: "x" },
+  { text: "Gender may be socially constructed, but sex is...", left: "purely biological", right: "constructed to naturalize the gender binary", axis: "y" },
+  { text: "When it comes to sports...", left: "trans people should be allowed to play on the team that aligns with their gender identity", right: "teams should not be organized in relation to a gender binary at all", axis: "x" },
+  { text: "The gender binary has...", left: "accurately categorized people for all of time", right: "been violently imposed through European colonialism", axis: "y" },
+  { text: "Target really ought to...", left: "expand its pride collection to make up for the recent rollback", right: "become a worker-owned co-op", axis: "x" },
+  { text: "One of the most important goals of queer and trans liberation is...", left: "teaching people to respect pronouns", right: "dismantling capitalism", axis: "x" },
+  { text: "Marriage should...", left: "be available to people regardless of gender or sexuality", right: "not be a primary avenue through which people can get basic needs met", axis: "x" },
+  { text: "Learning to make and disseminate DIY hormones is...", left: "dangerous and unnecessary", right: "part of a tradition of mutual aid that can help trans people survive", axis: "x" },
+  { text: "Police ought to be...", left: "better trained to address trans people respectfully", right: "defunded and replaced with transformative justice approaches to safety", axis: "x" },
+];
+
+const IDEAL_TYPES = [
+  { name: "TERF",                 x:  0, y: -9 },
+  { name: "Radical Faerie",       x:  6, y: -4 },
+  { name: "Tenderqueer",          x: -7, y:  8 },
+  { name: "Cyberfeminist",        x:  3, y: 10 },
+  { name: "Tranarchist",          x: 10, y:  7 },
+  { name: "Log Cabin Republican", x: -10, y: -5 },
+  { name: "PFLAG Mom",            x: -7, y:  1 },
+];
+
+const IDEAL_COLORS = ["#C0404A", "#E8963A", "#534AB7", "#1D9E75", "#2AA8A0", "#8B5CF6", "#D4537E"];
+
+const FLIPPED = QUESTIONS.map(() => Math.random() < 0.5);
+
+let current = 0;
+let answers = new Array(QUESTIONS.length).fill(50);
+
+function renderQuestion() {
+  const q = QUESTIONS[current];
+  const flipped = FLIPPED[current];
+  const pct = ((current + 1) / QUESTIONS.length * 100).toFixed(0);
+  document.getElementById('prog').style.width = pct + '%';
+  document.getElementById('prev-btn').style.display = current > 0 ? 'inline-block' : 'none';
+  const nb = document.getElementById('next-btn');
+  nb.textContent = current === QUESTIONS.length - 1 ? 'see my result →' : 'next →';
+
+  const displayLeft = flipped ? q.right : q.left;
+  const displayRight = flipped ? q.left : q.right;
+
+  document.getElementById('q-area').innerHTML = `
+    <div class="q-card">
+      <div class="q-num">question ${current + 1} of ${QUESTIONS.length}</div>
+      <div class="q-text">${q.text}</div>
+      <div>
+        <div class="slider-ends">
+          <span class="slider-end">${displayLeft}</span>
+          <span class="slider-end right">${displayRight}</span>
+        </div>
+        <input type="range" min="0" max="100" value="${answers[current]}" id="slider-main"
+          oninput="answers[current]=parseInt(this.value); document.getElementById('sval').textContent=this.value">
+        <div class="slider-val" id="sval">${answers[current]}</div>
+      </div>
+    </div>`;
+}
+
+function navigate(dir) {
+  const sl = document.getElementById('slider-main');
+  if (sl) answers[current] = parseInt(sl.value);
+  if (dir === 1 && current === QUESTIONS.length - 1) { showResult(); return; }
+  current = Math.max(0, Math.min(QUESTIONS.length - 1, current + dir));
+  renderQuestion();
+}
+
+function computeScores() {
+  let xVals = [], yVals = [];
+  QUESTIONS.forEach((q, i) => {
+    let norm = (answers[i] - 50) / 50;
+    if (FLIPPED[i]) norm = -norm;
+    if (q.axis === "x" || q.axis === "xy") xVals.push(norm);
+    if (q.axis === "y" || q.axis === "xy") yVals.push(norm);
+  });
+  const xAvg = xVals.reduce((a,b)=>a+b,0) / xVals.length;
+  const yAvg = yVals.reduce((a,b)=>a+b,0) / yVals.length;
+  return { x: xAvg * 10, y: yAvg * 10 };
+}
+
+function toPlot(val, min, max) { return (val - min) / (max - min); }
+
+function showResult() {
+  document.getElementById('quiz-screen').style.display = 'none';
+  document.getElementById('result-screen').style.display = 'block';
+  const scores = computeScores();
+  const xLabel = scores.x > 2 ? "anti-assimilationist" : scores.x < -2 ? "assimilationist" : "between";
+  const yLabel = scores.y > 2 ? "poststructuralist" : scores.y < -2 ? "bio-essentialist" : "between";
+  document.getElementById('x-score-display').textContent = xLabel;
+  document.getElementById('y-score-display').textContent = yLabel;
+  drawPlot(scores);
+}
+
+function drawPlot(userScores) {
+  const S = 480, PAD = 56, INNER = S - PAD*2;
+  const svg = document.getElementById('plot-svg');
+
+  function px(v) { return PAD + toPlot(v, -10, 10) * INNER; }
+  function py(v) { return PAD + toPlot(-v, -10, 10) * INNER; }
+
+  let html = `
+    <rect x="${PAD}" y="${PAD}" width="${INNER}" height="${INNER}" fill="#f9f8f5" stroke="rgba(0,0,0,0.1)" stroke-width="0.5"/>
+    <line x1="${PAD}" y1="${S/2}" x2="${S-PAD}" y2="${S/2}" stroke="rgba(0,0,0,0.15)" stroke-width="0.5"/>
+    <line x1="${S/2}" y1="${PAD}" x2="${S/2}" y2="${S-PAD}" stroke="rgba(0,0,0,0.15)" stroke-width="0.5"/>
+    <text x="${S/2}" y="${PAD-10}" text-anchor="middle" font-size="11" fill="#534AB7" font-family="DM Mono,monospace" letter-spacing="0.05em">poststructuralist</text>
+    <text x="${S/2}" y="${S-PAD+20}" text-anchor="middle" font-size="11" fill="#BA7517" font-family="DM Mono,monospace" letter-spacing="0.05em">bio-essentialist</text>
+    <text x="${PAD-8}" y="${S/2}" text-anchor="middle" font-size="11" fill="#D4537E" font-family="DM Mono,monospace" letter-spacing="0.05em" transform="rotate(-90 ${PAD-8} ${S/2})">assimilationist</text>
+    <text x="${S-PAD+8}" y="${S/2}" text-anchor="middle" font-size="11" fill="#1D9E75" font-family="DM Mono,monospace" letter-spacing="0.05em" transform="rotate(90 ${S-PAD+8} ${S/2})">anti-assimilationist</text>`;
+
+  IDEAL_TYPES.forEach((pt, i) => {
+    const cx = px(pt.x), cy = py(pt.y);
+    const col = IDEAL_COLORS[i];
+    const isLeft = pt.x < 0;
+    const isTop = pt.y > 0;
+    const lx = isLeft ? cx + 10 : cx - 10;
+    const ly = isTop ? cy + 16 : cy - 8;
+    const anchor = isLeft ? "start" : "end";
+    html += `
+      <circle cx="${cx}" cy="${cy}" r="6" fill="${col}" opacity="0.85"/>
+      <text x="${lx}" y="${ly}" text-anchor="${anchor}" font-size="10" fill="${col}" font-family="DM Mono,monospace">${pt.name}</text>`;
+  });
+
+  const ux = px(userScores.x), uy = py(userScores.y);
+  html += `
+    <circle cx="${ux}" cy="${uy}" r="9" fill="#1a1a18" opacity="0.9"/>
+    <text x="${ux}" y="${uy - 14}" text-anchor="middle" font-size="11" fill="#1a1a18" font-weight="500" font-family="DM Mono,monospace">you</text>`;
+
+  svg.innerHTML = html;
+}
+
+function retake() {
+  current = 0;
+  answers = new Array(QUESTIONS.length).fill(50);
+  document.getElementById('result-screen').style.display = 'none';
+  document.getElementById('quiz-screen').style.display = 'block';
+  renderQuestion();
+}
+
+
+renderQuestion();
+</script>
+</body>
+</html>
